@@ -19,7 +19,7 @@ MoleculeGen AI is a web-based platform for generating novel molecular structures
 ### Prerequisites
 
 - Python 3.8+: Ensure Python is installed on your system
-- UV: A Python package and dependency manager (similar to pip but faster). Install UV by following the instructions at [uv.rs](https://uv.rs)
+- UV: A Python package and dependency manager (similar to pip but faster). Install UV by following the instructions at [uv download link](https://docs.astral.sh/uv/getting-started/installation/)
 - Git: To clone the repository
 
 ### Installation Steps
@@ -38,6 +38,13 @@ MoleculeGen AI is a web-based platform for generating novel molecular structures
    ```bash
    uv sync
    ```
+
+4. Download Required Data:
+
+   Download this file and put inside data folder.
+   
+   [qm9_relgcn_kekulized_ggnp.npz](https://drive.google.com/file/d/11tbM4z5iI_V_3APk4u6Ys39xipvnFmdh/view?usp=drive_link)
+
 
 ### Running the Website
 
