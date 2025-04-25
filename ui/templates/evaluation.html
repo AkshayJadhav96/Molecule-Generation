@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evaluation - MoleculeGen AI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/evaluation.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+</head>
+<body>
+    <header>
+        <div class="logo">MoleculeGen AI</div>
+        <nav>
+            <ul>
+                <li><a href="/">Dashboard</a></li>
+                <li><a href="/analysis">Analysis</a></li>
+                <li class="active"><a href="/evaluation">Evaluation</a></li>
+                <li><a href="/learn_models">Learn Model</a></li>
+            </ul>
+        </nav>
+    </header>
+    
+    <main>
+        <div class="content-area">
+            <h3>Model Performance Metrics</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Model</th>
+                        <th>Validity</th>
+                        <th>Uniqueness</th>
+                        <th>Novelty</th>
+                        <th>Generation Time (s)</th>
+                    </tr>
+                </thead>
+                <tbody id="metrics-table">
+                </tbody>
+            </table>
+            
+            <h3>Property Comparison with QM9</h3>
+            <canvas id="property-comparison-chart"></canvas>
+        </div>
+    </main>
+    
+    <script src="{{ url_for('static', filename='js/evaluation.js') }}"></script>
+</body>
+</html>

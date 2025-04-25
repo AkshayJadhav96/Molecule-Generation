@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoleculeGen AI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+</head>
+<body>
+    <header>
+        <div class="logo">MoleculeGen AI</div>
+        <nav>
+            <ul>
+                <li class="active"><a href="/">Dashboard</a></li>
+                <li><a href="/analysis">Analysis</a></li>
+                <li><a href="/evaluation">Evaluation</a></li>
+                <li><a href="/learn_models">Learn Model</a></li>
+                <li><a href="/interpolation">Interpolation</a></li>
+            </ul>
+        </nav>
+    </header>
+    
+    <main>
+        <div class="controls-panel">
+            <h2>Generation Controls</h2>
+            
+            <div class="control-group">
+                <label for="model">Model</label>
+                <div class="select-wrapper">
+                    <select id="model">
+                        <option value="moflow">MoFlow</option>
+                        <option value="vae">VAE</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3>Parameters</h3>
+                
+                <div class="slider-control">
+                    <label for="temperature">Temperature</label>
+                    <div class="slider-container">
+                        <input type="range" id="temperature" min="0" max="1" step="0.01" value="0.7">
+                    </div>
+                </div>
+                
+                <div class="slider-control">
+                    <label for="uniqueness">Uniqueness</label>
+                    <div class="slider-container">
+                        <input type="range" id="uniqueness" min="0" max="1" step="0.01" value="0.8">
+                    </div>
+                </div>
+                
+                <div class="slider-control">
+                    <label for="complexity">Complexity</label>
+                    <div class="slider-container">
+                        <input type="range" id="complexity" min="0" max="1" step="0.01" value="0.6">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3>Property Constraints</h3>
+                
+                <div class="range-control">
+                    <label>Molecular Weight</label>
+                    <div class="range-inputs">
+                        <input type="number" id="mw-min" placeholder="Min">
+                        <input type="number" id="mw-max" placeholder="Max">
+                    </div>
+                </div>
+                
+                <div class="range-control">
+                    <label>LogP</label>
+                    <div class="range-inputs">
+                        <input type="number" id="logp-min" placeholder="Min">
+                        <input type="number" id="logp-max" placeholder="Max">
+                    </div>
+                </div>
+            </div>
+            
+            <button id="generate-btn" class="primary-btn">Generate Molecules</button>
+            
+            <div class="status">
+                <span>Status:</span>
+                <span id="status-text">Ready</span>
+                <span class="status-indicator ready"></span>
+            </div>
+        </div>
+        
+        <div class="content-area">
+            <div class="molecule-display">
+                <div class="molecule-visual" id="molecule-visual">
+                    <!-- Molecule visualization will be inserted here -->
+                    <div class="loading-placeholder">Click "Generate Molecules" to start</div>
+                </div>
+                
+                <div class="molecule-details">
+                    <h3>Molecule Details</h3>
+                    <div class="properties-list">
+                        <div class="property"><span>Formula:</span> <span id="formula">-</span></div>
+                        <div class="property"><span>Molecular Weight:</span> <span id="mol-weight">-</span></div>
+                        <div class="property"><span>LogP:</span> <span id="logp-value">-</span></div>
+                        <div class="property"><span>Hydrogen Bond Donors:</span> <span id="h-donors">-</span></div>
+                        <div class="property"><span>Hydrogen Bond Acceptors:</span> <span id="h-acceptors">-</span></div>
+                        <div class="property"><span>Rotatable Bonds:</span> <span id="rot-bonds">-</span></div>
+                        <div class="property"><span>Validity Score:</span> <span id="validity-score">-</span></div>
+                        <div class="property"><span>QED:</span> <span id="qed">-</span></div>
+                        <div class="property"><span>SA Score:</span> <span id="sa-score">-</span></div>
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <button id="save-btn" class="action-btn primary">Save</button>
+                        <button id="export-btn" class="action-btn secondary">Export</button>
+                        <button id="analyze-btn" class="action-btn secondary">Analyze</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="results-grid">
+                <h3>Generated Molecules</h3>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Structure</th>
+                            <th>Formula</th>
+                            <th>Mol. Weight</th>
+                            <th>LogP</th>
+                            <th>Validity</th>
+                            <th>Uniqueness</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-table">
+                        <!-- Results will be inserted here -->
+                    </tbody>
+                </table>
+                
+                <div class="pagination">
+                    <button id="prev-page">&larr;</button>
+                    <span id="page-indicator">1 / 1</span>
+                    <button id="next-page">&rarr;</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal for simulation -->
+    <div id="simulation-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>Molecule Simulation</h3>
+            <div id="simulation-display"></div>
+        </div>
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

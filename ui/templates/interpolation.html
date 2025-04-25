@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interpolation - Molecule Generation</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <!-- Include RDKit.js with async loading -->
+    
+    <script src="https://unpkg.com/@rdkit/rdkit/dist/RDKit_minimal.js"></script>
+    <!-- Instantiate the WASM module -->
+    <script>
+        window.initRDKitModule()
+            .then(function (RDKit) {
+                console.log("RDKit version: " + RDKit.version());
+                window.RDKit = RDKit;
+                /**
+                 * The RDKit module is now loaded.
+                 * You can use it anywhere after this point.
+                 */
+            })
+            .catch((error) => {
+                console.error('Failed to load RDKit.js:', error);
+                alert('Error: Could not load RDKit.js. Please check your internet connection or console for details.');
+            });
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(to bottom, #f0f4f8, #d1dde9);
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .molecule-card {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            margin-bottom: 2.5rem;
+            transition: transform 0.3s ease;
+        }
+
+        .molecule-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .diagram {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        .tab-btn {
+            background-color: #2563eb;
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 0.75rem;
+            font-size: 1.125rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .tab-btn:hover {
+            background-color: #1e40af;
+        }
+
+        .highlight {
+            color: #2563eb;
+            font-weight: 600;
+        }
+
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            display: none;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .metric-card {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        select, input[type="number"] {
+            display: block;
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ccc;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        label {
+            font-size: 1.125rem;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem; /* Space between checkbox and label */
+            margin-bottom: 1.5rem; /* Increased margin for better separation */
+        }
+
+        input[type="checkbox"] {
+            margin: 0; /* Reset margin to avoid overlap */
+            transform: scale(1.5); /* Larger checkbox for visibility */
+            cursor: pointer;
+            accent-color: #2563eb; /* Matches the theme color */
+        }
+
+        /* Ensure label text wraps cleanly */
+        .checkbox-container label {
+            white-space: normal; /* Allow text to wrap */
+            margin: 0; /* Reset margin */
+            padding: 0; /* Reset padding */
+            font-size: 1.125rem; /* Consistent with other labels */
+            color: #374151; /* Consistent text color */
+        }
+
+        #molecule-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .molecule-item {
+            text-align: center;
+        }
+
+        .molecule-img {
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="bg-gradient-to-r from-blue-600 to-blue-800 p-4 shadow-lg">
+        <div class="container mx-auto flex justify-between items-center">
+            <a href="/" class="text-white text-2xl font-bold flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                </svg>
+                Molecule Generation
+            </a>
+            <div class="hidden md:flex">
+                <a href="/" class="text-white mx-4 hover:text-blue-200 transition-colors duration-300">Generate</a>
+                <a href="/analysis" class="text-white mx-4 hover:text-blue-200 transition-colors duration-300">Analysis</a>
+                <a href="/evaluation" class="text-white mx-4 hover:text-blue-200 transition-colors duration-300">Evaluation</a>
+                <a href="/learn_models" class="text-white mx-4 hover:text-blue-200 transition-colors duration-300">Learn Models</a>
+                <a href="/interpolation" class="text-white mx-4 font-bold border-b-2 border-white">Interpolation</a>
+            </div>
+            <button class="md:hidden text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Header -->
+    <header class="container mx-auto py-12 px-6">
+        <h1 class="text-4xl md:text-5xl font-bold text-center mb-4 text-blue-900 animate__animated animate__fadeIn">Molecule Interpolation</h1>
+        <p class="text-center text-gray-700 text-lg md:text-xl max-w-3xl mx-auto animate__animated animate__fadeIn animate__delay-1s">
+            Select an interpolation method to explore MoFlow's latent space, view metrics, and visualize the generated molecules.
+        </p>
+    </header>
+
+    <div class="container mx-auto px-6 pb-16">
+        <div class="molecule-card">
+            <h2 class="text-3xl font-bold mb-6 text-blue-800">Configure Interpolation</h2>
+            <p class="text-gray-700 text-lg mb-6 leading-relaxed">
+                Choose an interpolation method and adjust parameters to generate molecules using <span class="highlight">MoFlow</span>. Metrics and visualizations will be displayed below.
+            </p>
+            <div class="mb-6">
+                <label for="interpolation-type">Interpolation Type</label>
+                <select id="interpolation-type">
+                    <option value="two-points">Two-Point Interpolation</option>
+                    <option value="grid">Grid Interpolation</option>
+                </select>
+            </div>
+            <div id="two-points-params" class="mb-6">
+                <label for="mols-per-row">Molecules per Row</label>
+                <input type="number" id="mols-per-row" value="15" min="5" max="20">
+                <label for="n-interpolation">Number of Interpolations</label>
+                <input type="number" id="n-interpolation" value="50" min="10" max="100">
+            </div>
+            <div id="grid-params" class="mb-6 hidden">
+                <label for="grid-mols-per-row">Molecules per Row</label>
+                <input type="number" id="grid-mols-per-row" value="15" min="5" max="15">
+                <label for="delta">Delta (Step Size)</label>
+                <input type="number" id="delta" value="0.1" step="0.01" min="0.01" max="1.0">
+            </div>
+            <!-- Updated checkbox container with improved spacing -->
+            <div class="checkbox-container">
+                <input type="checkbox" id="keep-duplicates" name="keep-duplicates">
+                <label for="keep-duplicates">Keep Duplicates</label>
+            </div>
+            <div class="flex justify-center mt-6">
+                <button id="generate-interpolation" class="tab-btn">Generate Interpolation</button>
+            </div>
+        </div>
+
+        <div id="results" class="hidden">
+            <div class="metric-card mb-10">
+                <h3 class="text-2xl font-bold mb-4 text-blue-800">Metrics</h3>
+                <div id="metrics-loader" class="loader"></div>
+                <div id="metrics-content" class="grid grid-cols-1 md:grid-cols-3 gap-4 hidden">
+                    <div class="p-4 bg-blue-50 rounded-lg">
+                        <p class="text-lg font-medium text-blue-800">Validity</p>
+                        <p id="validity" class="text-2xl font-bold text-blue-600">--%</p>
+                    </div>
+                    <div class="p-4 bg-blue-50 rounded-lg">
+                        <p class="text-lg font-medium text-blue-800">Uniqueness</p>
+                        <p id="uniqueness" class="text-2xl font-bold text-blue-600">--%</p>
+                    </div>
+                    <div class="p-4 bg-blue-50 rounded-lg">
+                        <p class="text-lg font-medium text-blue-800">Novelty</p>
+                        <p id="novelty" class="text-2xl font-bold text-blue-600">--%</p>
+                    </div>
+                </div>
+            </div>
+            <div class="molecule-card">
+                <h3 class="text-2xl font-bold mb-4 text-blue-800">Visualization</h3>
+                <div id="image-loader" class="loader"></div>
+                <div id="molecule-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-gray-900 text-white py-8">
+        <div class="container mx-auto px-6">
+            <p class="text-center">© 2025 Molecule Generation Platform. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Global variable to hold RDKit
+        let RDKit = null;
+
+        // GSAP Animations
+        gsap.from("header", { duration: 1, y: -50, opacity: 0, ease: "power2.out" });
+        gsap.from(".molecule-card", { duration: 1, y: 50, opacity: 0, stagger: 0.2, ease: "power2.out", delay: 0.5 });
+
+        // Toggle parameter visibility
+        const interpolationType = document.getElementById('interpolation-type');
+        const twoPointsParams = document.getElementById('two-points-params');
+        const gridParams = document.getElementById('grid-params');
+
+        interpolationType.addEventListener('change', () => {
+            if (interpolationType.value === 'two-points') {
+                twoPointsParams.classList.remove('hidden');
+                gridParams.classList.add('hidden');
+            } else {
+                twoPointsParams.classList.add('hidden');
+                gridParams.classList.remove('hidden');
+            }
+        });
+
+        // Generate Interpolation
+        document.getElementById('generate-interpolation').addEventListener('click', async () => {
+            const type = interpolationType.value;
+            const results = document.getElementById('results');
+            const metricsLoader = document.getElementById('metrics-loader');
+            const imageLoader = document.getElementById('image-loader');
+            const metricsContent = document.getElementById('metrics-content');
+            const moleculeGrid = document.getElementById('molecule-grid');
+            const validity = document.getElementById('validity');
+            const uniqueness = document.getElementById('uniqueness');
+            const novelty = document.getElementById('novelty');
+            const keepDuplicates = document.getElementById('keep-duplicates').checked;
+
+            // Check if RDKit is loaded
+            if (!window.RDKit) {
+                alert('RDKit.js is not loaded yet. Please wait for the page to fully load or refresh.');
+                return;
+            }
+            RDKit = window.RDKit;
+
+            // Show loaders and clear previous results
+            results.classList.remove('hidden');
+            metricsLoader.style.display = 'block';
+            imageLoader.style.display = 'block';
+            metricsContent.classList.add('hidden');
+            moleculeGrid.innerHTML = '';
+
+            try {
+                let url, data;
+                if (type === 'two-points') {
+                    url = '/interpolate_two_points';
+                    data = {
+                        mols_per_row: parseInt(document.getElementById('mols-per-row').value),
+                        n_interpolation: parseInt(document.getElementById('n-interpolation').value),
+                        keep_duplicates: keepDuplicates
+                    };
+                } else {
+                    url = '/interpolate_grid';
+                    data = {
+                        mols_per_row: parseInt(document.getElementById('grid-mols-per-row').value),
+                        delta: parseFloat(document.getElementById('delta').value),
+                        keep_duplicates: keepDuplicates
+                    };
+                }
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+
+                console.log('Fetch Response:', result); // Debug: Log the full response
+
+                if (result.error) {
+                    alert('Error: ' + result.error);
+                } else {
+                    // Update metrics
+                    validity.textContent = `${isNaN(result.metrics.validity) ? 0 : (result.metrics.validity * 100).toFixed(2)}%`;
+                    uniqueness.textContent = `${isNaN(result.metrics.uniqueness) ? 0 : (result.metrics.uniqueness * 100).toFixed(2)}%`;
+                    novelty.textContent = `${isNaN(result.metrics.novelty) ? 0 : Math.min(result.metrics.novelty, 100).toFixed(2)}%`;
+
+                    // Render molecules using RDKit.js
+                    const molPromises = result.molecules.map(async (mol) => {
+                        const rdkitMol = await RDKit.get_mol(mol.smiles);
+                        if (rdkitMol) {
+                            const svg = rdkitMol.get_svg();
+                            rdkitMol.delete(); // Clean up
+                            return { svg: svg, label: mol.label };
+                        }
+                        return { svg: '<div>Invalid Molecule</div>', label: mol.label };
+                    });
+
+                    const mols = await Promise.all(molPromises);
+                    mols.forEach((mol) => {
+                        const div = document.createElement('div');
+                        div.className = 'molecule-item';
+                        div.innerHTML = `${mol.svg}<p>${mol.label}</p>`;
+                        moleculeGrid.appendChild(div);
+                    });
+
+                    metricsContent.classList.remove('hidden');
+                    gsap.from(metricsContent, { duration: 1, opacity: 0, y: 20, ease: "power2.out" });
+                    gsap.from(moleculeGrid, { duration: 1, opacity: 0, scale: 0.8, ease: "power2.out", delay: 0.2 });
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to generate interpolation');
+            } finally {
+                metricsLoader.style.display = 'none';
+                imageLoader.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

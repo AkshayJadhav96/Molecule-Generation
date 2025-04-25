@@ -1,0 +1,55 @@
+#!/bin/bash
+#SBATCH --job-name=MoleculeGen        # Unique job name for this project
+#SBATCH --nodes=1                     # Number of nodes
+#SBATCH --ntasks=1                    # Total number of MPI tasks
+#SBATCH --cpus-per-task=4             # CPUs per task (kept same as original)
+#SBATCH --partition=gpu01             # GPU partition (assuming this is correct for your cluster)
+#SBATCH --gres=gpu                 # Request 1 GPU (explicitly specify 1 GPU)
+#SBATCH --time=1-00:00:00             # Time limit (increased to 48 hours for training)
+#SBATCH --output=/home/u142201016/outputlogs/moleculgen_%j.out  # Unique output file for this project
+#SBATCH --mail-user=142201016@smail.iitpkd.ac.in     # Your email address
+
+# Load necessary modules
+module purge
+
+# Run the main script
+# uv run src/main.py
+# uv run moflow/mflow/run_train.py
+
+
+echo "Step 1: Downloading and processing QM9 dataset"
+# uv run VAE/scripts/download_qm9.py
+
+# Train the model
+echo "Step 2: Training model"
+uv run VAE/scripts/train.py \
+    --dataset_path=VAE/data/qm9/processed_qm9.csv \
+    --target_prop=qed \
+    --batch_size=32 \
+    --num_epochs=10 \
+    --learn_rate=0.0005 \
+    --latent_size=256 \
+    --save_dir=models/saved
+
+# Generate molecules
+echo "Step 3: Generating molecules"
+uv run VAE/scripts/generate.py \
+    --model_weights=models/saved/VAE/qm9_vae_qed_final.weights.h5 \
+    --num_samples=1000 \
+    --target_prop=qed \
+    --save_dir=results/random
+
+# Generate optimized molecules
+echo "Step 4: Generating optimized molecules"
+uv run VAE/scripts/generate.py \
+    --model_weights=models/saved/qm9_vae_qed.weights.h5 \
+    --num_samples=1000 \
+    --target_prop=qed \
+    --prop_value=0.9 \
+    --save_dir=results/optimized \
+    --optimize_prop
+
+echo "Job finished at: $(date)"
+
+
+

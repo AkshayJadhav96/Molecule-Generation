@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analysis - MoleculeGen AI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/analysis.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+</head>
+<body>
+    <header>
+        <div class="logo">MoleculeGen AI</div>
+        <nav>
+            <ul>
+                <li><a href="/">Dashboard</a></li>
+                <li class="active"><a href="/analysis">Analysis</a></li>
+                <li><a href="/evaluation">Evaluation</a></li>
+                <li><a href="/learn_models">Learn Model</a></li>
+            </ul>
+        </nav>
+    </header>
+    
+    <main>
+        <div class="controls-panel">
+            <h2>Analysis Controls</h2>
+            
+            <div class="control-group">
+                <label for="property-select">Property to Analyze</label>
+                <div class="select-wrapper">
+                    <select id="property-select">
+                        <option value="molWeight">Molecular Weight</option>
+                        <option value="logP">LogP</option>
+                        <option value="h_donors">H Donors</option>
+                        <option value="h_acceptors">H Acceptors</option>
+                        <option value="rot_bonds">Rotatable Bonds</option>
+                        <option value="qed">QED</option>
+                        <option value="sa_score">SA Score</option>
+                        <option value="validity">Validity</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3>Filter by Properties</h3>
+                <div class="range-control">
+                    <label>Molecular Weight</label>
+                    <div class="range-inputs">
+                        <input type="number" id="filter-mw-min" placeholder="Min">
+                        <input type="number" id="filter-mw-max" placeholder="Max">
+                    </div>
+                </div>
+                <div class="range-control">
+                    <label>LogP</label>
+                    <div class="range-inputs">
+                        <input type="number" id="filter-logp-min" placeholder="Min">
+                        <input type="number" id="filter-logp-max" placeholder="Max">
+                    </div>
+                </div>
+                <div class="range-control">
+                    <label>QED</label>
+                    <div class="range-inputs">
+                        <input type="number" id="filter-qed-min" placeholder="Min">
+                        <input type="number" id="filter-qed-max" placeholder="Max">
+                    </div>
+                </div>
+            </div>
+            
+            <button id="analyze-btn" class="primary-btn">Analyze Molecules</button>
+        </div>
+        
+        <div class="content-area">
+            <h3>Property Distribution</h3>
+            <div id="error-message" style="color: red;"></div>
+            <canvas id="property-chart"></canvas>
+            
+            <h3>Diversity Metrics</h3>
+            <div class="property"><span>Average Tanimoto Similarity:</span> <span id="tanimoto-score">-</span></div>
+            
+            <h3>Filtered Molecules</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Structure</th>
+                        <th>Formula</th>
+                        <th>Mol. Weight</th>
+                        <th>LogP</th>
+                        <th>QED</th>
+                        <th>SA Score</th>
+                    </tr>
+                </thead>
+                <tbody id="filtered-table"></tbody>
+            </table>
+        </div>
+    </main>
+    
+    <script src="{{ url_for('static', filename='js/analysis.js') }}"></script>
+</body>
+</html>

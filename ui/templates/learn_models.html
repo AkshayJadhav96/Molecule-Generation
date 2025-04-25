@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learn Models - Molecule Generation</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(to bottom, #f0f4f8, #d1dde9);
+            min-height: 100vh;
+        }
+        
+        .model-content {
+            display: none;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.5s ease;
+        }
+        
+        .model-content.active {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .molecule-card {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .molecule-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+        }
+        
+        .diagram {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+        }
+        
+        .tab-btn {
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+        
+        .tab-btn::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 0%;
+            height: 3px;
+            background-color: #fff;
+            transition: all 0.3s ease;
+            z-index: -1;
+        }
+        
+        .tab-btn:hover::before {
+            width: 100%;
+        }
+        
+        .tab-btn.active {
+            background: rgba(37, 99, 235, 0.9);
+            box-shadow: 0 5px 15px rgba(37, 99, 235, 0.3);
+        }
+        
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-family: monospace;
+            display: inline-block;
+        }
+        
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .comparison-table th, .comparison-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .comparison-table th {
+            background-color: #f8fafc;
+        }
+        
+        .comparison-table tr:hover {
+            background-color: #f1f5f9;
+        }
+        
+        .highlight {
+            color: #2563eb;
+            font-weight: 600;
+        }
+        
+        .molecule-img {
+            transition: transform 0.5s ease;
+        }
+        
+        .molecule-img:hover {
+            transform: scale(1.1) rotate(5deg);
+        }
+        
+        .flow-animation, .vae-animation {
+            height: 120px;
+            position: relative;
+            margin: 30px 0;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 12px;
+        }
+        
+        .particle {
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: #3b82f6;
+            opacity: 0.7;
+        }
+        
+        .vae-shape {
+            position: absolute;
+            width: 80px;
+            height: 40px;
+            background: #3b82f6;
+            opacity: 0.7;
+            border-radius: 20px;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.7; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); opacity: 0.7; }
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="bg-gradient-to-r from-blue-600 to-blue-800 p-4 shadow-lg">
+        <div class="container mx-auto flex justify-between items-center">
+            <a href="/" class="text-white text-2xl font-bold flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                </svg>
+                Molecule Generation
+            </a>
+            <div class="hidden md:flex">
+                <a href="/" class="text-white mx-4 hover:text-blue-200 transition-colors duration-300">Generate</a>
+                <a href="/analysis" class="text-white mx-4 hover:text-blue-200 transition-colors duration-300">Analysis</a>
+                <a href="/evaluation" class="text-white mx-4 hover:text-blue-200 transition-colors duration-300">Evaluation</a>
+                <a href="/learn_models" class="text-white mx-4 font-bold border-b-2 border-white">Learn Models</a>
+            </div>
+            <button class="md:hidden text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Header -->
+    <header class="container mx-auto py-12 px-6">
+        <h1 class="text-4xl md:text-5xl font-bold text-center mb-4 text-blue-900 animate__animated animate__fadeIn">Understanding Molecule Generation</h1>
+        <p class="text-center text-gray-700 text-lg md:text-xl max-w-3xl mx-auto animate__animated animate__fadeIn animate__delay-1s">
+            Dive into the fascinating world of AI-powered molecule design. Discover how our models transform mathematical concepts into potential new medicines.
+        </p>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-6 pb-16">
+        <!-- Model Selector -->
+        <div class="flex flex-col md:flex-row justify-center mb-12 animate__animated animate__fadeInUp animate__delay-1s">
+            <button id="select-moflow" class="tab-btn active bg-blue-600 text-white px-8 py-4 rounded-l-lg md:rounded-l-xl text-lg font-medium focus:outline-none">
+                MoFlow
+            </button>
+            <button id="select-comparison" class="tab-btn bg-blue-600 text-white px-8 py-4 text-lg font-medium focus:outline-none">
+                Compare Models
+            </button>
+            <button id="select-vae" class="tab-btn bg-blue-600 text-white px-8 py-4 rounded-r-lg md:rounded-r-xl text-lg font-medium focus:outline-none">
+                VAE
+            </button>
+        </div>
+
+        <!-- MoFlow Content -->
+        <div id="moflow-content" class="model-content molecule-card p-8 md:p-10 mb-10 active">
+            <div class="flex flex-col md:flex-row">
+                <div class="md:w-2/3 pr-0 md:pr-8">
+                    <h2 class="text-3xl font-bold mb-6 text-blue-800">MoFlow: Precision Molecule Engineering</h2>
+                    <p class="text-gray-700 text-lg mb-6 leading-relaxed">
+                        MoFlow represents a breakthrough in molecule generation using <span class="highlight">normalizing flows</span>, a sophisticated mathematical technique that transforms random noise into highly structured molecular designs.
+                    </p>
+                    
+                    <div class="flow-animation mb-8" id="flow-animation">
+                        <!-- Animation elements will be inserted here by JS -->
+                    </div>
+                    
+                    <h3 class="text-2xl font-semibold mb-4 text-blue-700">How MoFlow Works</h3>
+                    <ol class="list-decimal pl-8 mb-8 text-gray-700 space-y-4">
+                        <li class="text-lg">
+                            <span class="font-medium">Start with Random Noise</span>
+                            <p class="mt-2">
+                                Imagine you roll a dice many times and get totally random numbers — that's what this step represents. It's just meaningless random values, like: <span>[0.23, -1.02, 0.56, ...]</span>. These values come from a standard distribution (like a normal distribution), and MoFlow will learn to turn this noise into something meaningful.
+                            </p>
+                        </li>
+                        <li class="text-lg">
+                            <span class="font-medium">Transform Noise into Patterns</span>
+                            <p class="mt-2">
+                                Now, MoFlow starts applying mathematical functions (called flows) to shape the noise. Think of it like clay molding: you start with a lump (noise), and carefully press and twist it into a shape (pattern). These transformations are reversible, so you can go back and forth.
+                            </p>
+                        </li>
+                        <li class="text-lg">
+                            <span class="font-medium">Generate the Final Molecule</span>
+                            <p class="mt-2">
+                                After transforming, the noise becomes a valid molecule representation. This might be in the form of a graph, where atoms are nodes and bonds are edges. Example: Random noise becomes a structure like ethanol (<span>CCO</span>).
+                            </p>
+                        </li>
+                    </ol>
+                    
+                    <h3 class="text-2xl font-semibold mb-4 text-blue-700">MoFlow's Strengths</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        <div class="bg-blue-50 p-6 rounded-xl shadow-sm">
+                            <div class="flex items-center mb-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5" />
+                                </svg>
+                                <h4 class="font-semibold text-lg text-blue-800">High Diversity</h4>
+                            </div>
+                            <p class="text-gray-700">
+                                Generates a wide range of unique molecules with 84.3% uniqueness in testing.
+                            </p>
+                        </div>
+                        <div class="bg-blue-50 p-6 rounded-xl shadow-sm">
+                            <div class="flex items-center mb-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                </svg>
+                                <h4 class="font-semibold text-lg text-blue-800">Chemical Validity</h4>
+                            </div>
+                            <p class="text-gray-700">
+                                Produces chemically valid structures with proper bonding and atom configurations.
+                            </p>
+                        </div>
+                        <div class="bg-blue-50 p-6 rounded-xl shadow-sm">
+                            <div class="flex items-center mb-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                                <h4 class="font-semibold text-lg text-blue-800">Controllability</h4>
+                            </div>
+                            <p class="text-gray-700">
+                                Offers precise control over molecular features during generation.
+                            </p>
+                        </div>
+                        <div class="bg-blue-50 p-6 rounded-xl shadow-sm">
+                            <div class="flex items-center mb-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                                <h4 class="font-semibold text-lg text-blue-800">Computational Efficiency</h4>
+                            </div>
+                            <p class="text-gray-700">
+                                Generates structures rapidly with lower computational overhead.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="md:w-1/3 mt-6 md:mt-0">
+                    <div class="sticky top-6">
+                        <div class="bg-white p-6 rounded-xl shadow-md mb-6">
+                            <h3 class="text-xl font-semibold mb-4 text-blue-700">MoFlow Example</h3>
+                            <p class="text-gray-700 mb-4">
+                                MoFlow generated this ethanol molecule (<span>CCO</span>) with proper structure:
+                            </p>
+                            <div class="flex justify-center">
+                                <img src="data:image/png;base64,{{ moflow_example_img }}" alt="MoFlow Example Molecule" class="molecule-img rounded-lg shadow-sm mb-4">
+                            </div>
+                        </div>
+                        
+                        <div class="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl shadow-md">
+                            <h3 class="text-xl font-semibold mb-4 text-blue-700">Real-World Application</h3>
+                            <p class="text-gray-700 mb-4">
+                                MoFlow excels in drug discovery by generating diverse molecules with specific binding properties for target proteins, potentially accelerating pharmaceutical research.
+                            </p>
+                            <div class="flex items-center text-blue-600 font-medium">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>843 valid molecules generated in testing</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VAE Content -->
+        <div id="vae-content" class="model-content molecule-card p-8 md:p-10 mb-10">
+            <div class="flex flex-col md:flex-row">
+                <div class="md:w-2/3 pr-0 md:pr-8">
+                    <h2 class="text-3xl font-bold mb-6 text-purple-800">VAE: Creative Molecule Imagination</h2>
+                    <p class="text-gray-700 text-lg mb-6 leading-relaxed">
+                        Variational Autoencoders (VAEs) approach molecule generation through a process of <span class="highlight">encoding and decoding</span>, similar to how our brains compress and recreate memories of objects we've seen.
+                    </p>
+                    
+                    <div class="vae-animation mb-8" id="vae-animation">
+                        <!-- Animation elements will be inserted here by JS -->
+                    </div>
+                    
+                    <h3 class="text-2xl font-semibold mb-4 text-purple-700">How VAE Works</h3>
+                    <ol class="list-decimal pl-8 mb-8 text-gray-700 space-y-4">
+                        <li class="text-lg">
+                            <span class="font-medium">Start with a Molecular Structure</span>
+                            <p class="mt-2">
+                                Input a real molecule like ethanol (<span>CH₃CH₂OH</span>). This molecule is represented as a graph or as a vector (list of features).
+                            </p>
+                        </li>
+                        <li class="text-lg">
+                            <span class="font-medium">Encoding into Latent Space</span>
+                            <p class="mt-2">
+                                The model compresses this molecule into a smaller representation (like a summary). It's like describing a movie in just a few words. Example: Ethanol becomes <span>[0.4, -1.2, 0.9]</span> — a point in latent space.
+                            </p>
+                        </li>
+                        <li class="text-lg">
+                            <span class="font-medium">Sampling from Latent Space</span>
+                            <p class="mt-2">
+                                Now we can explore nearby points in this latent space. Sampling nearby means generating similar molecules. Think of it like choosing slightly different movie summaries to imagine new but similar movies.
+                            </p>
+                        </li>
+                        <li class="text-lg">
+                            <span class="font-medium">Decoding to Generate a New Molecule</span>
+                            <p class="mt-2">
+                                The sampled point is decoded back into a molecule. That point <span>[0.35, -1.1, 0.95]</span> might become a new molecule that didn’t exist before, but is similar to ethanol.
+                            </p>
+                        </li>
+                    </ol>
+                    
+                    <h3 class="text-2xl font-semibold mb-4 text-purple-700">VAE's Characteristics</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        <div class="bg-purple-50 p-6 rounded-xl shadow-sm">
+                            <div class="flex items-center mb-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-purple-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                </svg>
+                                <h4 class="font-semibold text-lg text-purple-800">Smooth Latent Space</h4>
+                            </div>
+                            <p class="text-gray-700">
+                                Creates a continuous space where similar molecules are positioned near each other.
+                            </p>
+                        </div>
+                        <div class="bg-purple-50 p-6 rounded-xl shadow-sm">
+                            <div class="flex items-center mb-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-purple-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" />
+                                </svg>
+                                <h4 class="font-semibold text-lg text-purple-800">Pattern Recognition</h4>
+                            </div>
+                            <p class="text-gray-700">
+                                Learns common molecular patterns from training data, focusing on frequent structures.
+                            </p>
+                        </div>
+                        <div class="bg-purple-50 p-6 rounded-xl shadow-sm">
+                            <div class="flex items-center mb-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-purple-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                                </svg>
+                                <h4 class="font-semibold text-lg text-purple-800">Interpolation</h4>
+                            </div>
+                            <p class="text-gray-700">
+                                Can blend features between existing molecules to create hybrids.
+                            </p>
+                        </div>
+                        <div class="bg-purple-50 p-6 rounded-xl shadow-sm">
+                            <div class="flex items-center mb-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-purple-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <h4 class="font-semibold text-lg text-purple-800">Mode Collapse Risk</h4>
+                            </div>
+                            <p class="text-gray-700">
+                                Tends to generate similar molecules repeatedly (7 unique from 5005 attempts).
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="md:w-1/3 mt-6 md:mt-0">
+                    <div class="sticky top-6">
+                        <div class="bg-white p-6 rounded-xl shadow-md mb-6">
+                            <h3 class="text-xl font-semibold mb-4 text-purple-700">VAE Example</h3>
+                            <p class="text-gray-700 mb-4">
+                                VAE frequently generates this benzene molecule (<span>c1ccccc1</span>):
+                            </p>
+                            <div class="flex justify-center">
+                                <img src="data:image/png;base64,{{ vae_example_img }}" alt="VAE Example Molecule" class="molecule-img rounded-lg shadow-sm mb-4">
+                            </div>
+                        </div>
+                        
+                        <div class="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-xl shadow-md">
+                            <h3 class="text-xl font-semibold mb-4 text-purple-700">Current Limitations</h3>
+                            <p class="text-gray-700 mb-4">
+                                While VAEs offer powerful molecule compression and representation learning, our implementation currently faces diversity challenges.
+                            </p>
+                            <div class="flex items-center text-purple-600 font-medium">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                <span>Active research to improve diversity</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Comparison Content -->
+        <div id="comparison-content" class="model-content molecule-card p-8 md:p-10 mb-10">
+            <h2 class="text-3xl font-bold mb-8 text-center text-gray-800">MoFlow vs. VAE: Head-to-Head Comparison</h2>
+            
+            <div class="overflow-x-auto mb-10">
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th class="w-1/4">Feature</th>
+                            <th class="w-3/8 text-blue-800">MoFlow</th>
+                            <th class="w-3/8 text-purple-800">VAE</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="font-medium">Core Approach</td>
+                            <td>Normalizing flows that transform distributions directly</td>
+                            <td>Encoding and decoding through a compressed latent space</td>
+                        </tr>
+                        <tr>
+                            <td class="font-medium">Generation Process</td>
+                            <td>Starts with random numbers, directly transforms to valid molecules</td>
+                            <td>Compresses learned patterns, then decodes to recreate molecules</td>
+                        </tr>
+                        <tr>
+                            <td class="font-medium">Diversity</td>
+                            <td class="text-green-600 font-medium">High (84.3% unique molecules)</td>
+                            <td class="text-red-600 font-medium">Low (0.14% unique molecules)</td>
+                        </tr>
+                        <tr>
+                            <td class="font-medium">Chemical Validity</td>
+                            <td class="text-green-600 font-medium">Very high</td>
+                            <td class="text-yellow-600 font-medium">Moderate</td>
+                        </tr>
+                        <tr>
+                            <td class="font-medium">Training Complexity</td>
+                            <td class="text-yellow-600 font-medium">Complex, requires extensive training</td>
+                            <td class="text-green-600 font-medium">Relatively simpler architecture</td>
+                        </tr>
+                        <tr>
+                            <td class="font-medium">Memory Usage</td>
+                            <td class="text-yellow-600 font-medium">Higher memory requirements</td>
+                            <td class="text-green-600 font-medium">More memory efficient</td>
+                        </tr>
+                        <tr>
+                            <td class="font-medium">Inference Speed</td>
+                            <td class="text-green-600 font-medium">Fast</td>
+                            <td class="text-green-600 font-medium">Fast</td>
+                        </tr>
+                        <tr>
+                            <td class="font-medium">Ideal Use Case</td>
+                            <td>Novel drug discovery with specific properties</td>
+                            <td>Learning molecular representations or optimizing known structures</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+                <div class="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl shadow-md">
+                    <h3 class="text-xl font-semibold mb-4 text-blue-700">MoFlow's Edge</h3>
+                    <p class="text-gray-700 mb-6">
+                        MoFlow takes a mathematically precise approach, treating molecule generation as a transformation problem. This results in:
+                    </p>
+                    <ul class="list-disc pl-6 text-gray-700 space-y-2">
+                        <li><span class="font-medium">Higher diversity</span> in generated molecules</li>
+                        <li><span class="font-medium">Better novelty</span> while maintaining validity</li>
+                        <li><span class="font-medium">More precise control</span> over molecular features</li>
+                        <li><span class="font-medium">Improved exploration</span> of chemical space</li>
+                    </ul>
+                </div>
+                
+                <div class="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-xl shadow-md">
+                    <h3 class="text-xl font-semibold mb-4 text-purple-700">VAE's Strengths</h3>
+                    <p class="text-gray-700 mb-6">
+                        VAEs excel at learning representative features of molecules, offering:
+                    </p>
+                    <ul class="list-disc pl-6 text-gray-700 space-y-2">
+                        <li><span class="font-medium">Efficient compression</span> of molecular information</li>
+                        <li><span class="font-medium">Smooth latent space</span> for property optimization</li>
+                        <li><span class="font-medium">Simpler architecture</span> that's easier to implement</li>
+                        <li><span class="font-medium">Good for interpolation</span> between known structures</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 p-8 rounded-xl shadow-md">
+                <h3 class="text-2xl font-semibold mb-6 text-center text-gray-800">Which Should You Choose?</h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="bg-white bg-opacity-70 p-6 rounded-lg shadow-sm">
+                        <h4 class="font-semibold text-lg text-blue-800 mb-4">Choose MoFlow when:</h4>
+                        <ul class="list-disc pl-6 text-gray-700 space-y-2">
+                            <li>You need a diverse set of novel molecules</li>
+                            <li>Chemical validity is critical to your application</li>
+                            <li>Your goal is to explore new regions of chemical space</li>
+                            <li>You need precise control over generated structures</li>
+                            <li>You're willing to invest in more complex training</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="bg-white bg-opacity-70 p-6 rounded-lg shadow-sm">
+                        <h4 class="font-semibold text-lg text-purple-800 mb-4">Choose VAE when:</h4>
+                        <ul class="list-disc pl-6 text-gray-700 space-y-2">
+                            <li>You're optimizing properties of existing molecules</li>
+                            <li>You need an efficient molecular representation</li>
+                            <li>You want to interpolate between known structures</li>
+                            <li>You have limited computational resources</li>
+                            <li>You're more interested in pattern recognition than novelty</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <p class="text-center text-gray-700 mt-8">
+                    For cutting-edge research, consider combining both approaches or exploring hybrid architectures.
+                </p>
+            </div>
+        </div>
+
+        <!-- Future Development Section -->
+        <div class="molecule-card p-8 md:p-10 mb-10 animate__animated animate__fadeIn animate__delay-2s">
+            <h2 class="text-3xl font-bold mb-6 text-center text-gray-800">Future Developments</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-xl shadow-md">
+                    <div class="flex items-center mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-green-600 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
+                        </svg>
+                        <h3 class="text-xl font-semibold text-green-800">Hybrid Models</h3>
+                    </div>
+                    <p class="text-gray-700">
+                        We're exploring hybrid architectures that combine the diversity of MoFlow with the representational learning of VAEs for the best of both worlds.
+                    </p>
+                </div>
+                
+                <div class="bg-gradient-to-br from-yellow-50 to-yellow-100 p-6 rounded-xl shadow-md">
+                    <div class="flex items-center mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-yellow-600 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                        </svg>
+                        <h3 class="text-xl font-semibold text-yellow-800">Property Targeting</h3>
+                    </div>
+                    <p class="text-gray-700">
+                        Upcoming versions will feature enhanced property conditioning, allowing more precise generation of molecules with desired characteristics.
+                    </p>
+                </div>
+                
+                <div class="bg-gradient-to-br from-red-50 to-red-100 p-6 rounded-xl shadow-md">
+                    <div class="flex items-center mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-red-600 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                        </svg>
+                        <h3 class="text-xl font-semibold text-red-800">3D Structures</h3>
+                    </div>
+                    <p class="text-gray-700">
+                        We're extending our models to generate 3D molecular structures directly, crucial for accurate binding affinity prediction and protein interactions.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white p-8">
+        <div class="container mx-auto">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-6 md:mb-0">
+                    <h3 class="text-xl font-bold mb-2">Molecule Generation</h3>
+                    <p class="text-gray-400">Advancing drug discovery through AI</p>
+                </div>
+                <div class="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-8">
+                    <div>
+                        <h4 class="font-semibold mb-2">Navigation</h4>
+                        <ul class="space-y-2">
+                            <li><a href="/" class="text-gray-400 hover:text-white transition-colors">Generate</a></li>
+                            <li><a href="/analysis" class="text-gray-400 hover:text-white transition-colors">Analysis</a></li>
+                            <li><a href="/evaluation" class="text-gray-400 hover:text-white transition-colors">Evaluation</a></li>
+                            <li><a href="/learn_models" class="text-gray-400 hover:text-white transition-colors">Learn Models</a></li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold mb-2">Resources</h4>
+                        <ul class="space-y-2">
+                            <li><a href="#" class="text-gray-400 hover:text-white transition-colors">Documentation</a></li>
+                            <li><a href="#" class="text-gray-400 hover:text-white transition-colors">API Reference</a></li>
+                            <li><a href="#" class="text-gray-400 hover:text-white transition-colors">Tutorials</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="border-t border-gray-700 mt-8 pt-6 text-center text-gray-400">
+                <p>&copy; 2025 Molecule Generation Project. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const moflowBtn = document.getElementById('select-moflow');
+            const vaeBtn = document.getElementById('select-vae');
+            const comparisonBtn = document.getElementById('select-comparison');
+            const moflowContent = document.getElementById('moflow-content');
+            const vaeContent = document.getElementById('vae-content');
+            const comparisonContent = document.getElementById('comparison-content');
+            
+            // Button click handlers
+            moflowBtn.addEventListener('click', () => {
+                setActiveContent(moflowContent, moflowBtn);
+            });
+            
+            vaeBtn.addEventListener('click', () => {
+                setActiveContent(vaeContent, vaeBtn);
+            });
+            
+            comparisonBtn.addEventListener('click', () => {
+                setActiveContent(comparisonContent, comparisonBtn);
+            });
+            
+            function setActiveContent(content, button) {
+                // Hide all content sections
+                moflowContent.classList.remove('active');
+                vaeContent.classList.remove('active');
+                comparisonContent.classList.remove('active');
+                
+                // Remove active class from all buttons
+                moflowBtn.classList.remove('active');
+                vaeBtn.classList.remove('active');
+                comparisonBtn.classList.remove('active');
+                
+                // Show selected content and set button active
+                content.classList.add('active');
+                button.classList.add('active');
+            }
+            
+            // MoFlow Animation
+            // Updated MoFlow Animation - Sequential flow demonstration
+            const flowAnimation = document.getElementById('flow-animation');
+            if (flowAnimation) {
+                // Clear existing content
+                flowAnimation.innerHTML = '';
+                
+                // Add explanation text element
+                const explanationText = document.createElement('div');
+                explanationText.className = 'text-center font-medium text-blue-700 mb-2';
+                explanationText.textContent = 'Step 1: Generate random noise';
+                flowAnimation.appendChild(explanationText);
+                
+                // Add container for visual elements
+                const animContainer = document.createElement('div');
+                animContainer.className = 'relative h-16 bg-blue-50 rounded-lg';
+                flowAnimation.appendChild(animContainer);
+                
+                // Create particles for the noise
+                for (let i = 0; i < 8; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'particle';
+                    particle.id = `particle-${i}`;
+                    animContainer.appendChild(particle);
+                    
+                    // Random positioning
+                    gsap.set(particle, { 
+                        x: 20 + Math.random() * 60,
+                        y: 8 + Math.random() * 30,
+                        scale: 0.8 + Math.random() * 0.4,
+                        backgroundColor: '#93c5fd'
+                    });
+                }
+                
+                // Create a molecule icon that will appear later
+                const moleculeIcon = document.createElement('div');
+                moleculeIcon.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2">
+                        <circle cx="12" cy="8" r="3"></circle>
+                        <circle cx="6" cy="16" r="3"></circle>
+                        <circle cx="18" cy="16" r="3"></circle>
+                        <line x1="12" y1="11" x2="12" y2="13"></line>
+                        <line x1="6" y1="13" x2="6" y2="15"></line>
+                        <line x1="18" y1="13" x2="18" y2="15"></line>
+                        <line x1="12" y1="13" x2="6" y2="13"></line>
+                        <line x1="12" y1="13" x2="18" y2="13"></line>
+                    </svg>
+                `;
+                moleculeIcon.className = 'absolute right-8 top-2 opacity-0';
+                animContainer.appendChild(moleculeIcon);
+                
+                // Navigation controls
+                const navControls = document.createElement('div');
+                navControls.className = 'flex justify-center mt-4 space-x-4';
+                navControls.innerHTML = `
+                    <button id="moflow-prev" class="px-3 py-1 bg-blue-100 text-blue-700 rounded-md disabled:opacity-50">Previous</button>
+                    <button id="moflow-next" class="px-3 py-1 bg-blue-600 text-white rounded-md">Next</button>
+                `;
+                flowAnimation.appendChild(navControls);
+                
+                // Animation steps
+                const steps = [
+                    {
+                        text: 'Step 1: Generate random noise',
+                        action: () => {
+                            // Reset
+                            gsap.to(moleculeIcon, { opacity: 0, duration: 0.5 });
+                            gsap.to('.particle', { 
+                                x: (i) => 20 + Math.random() * 60,
+                                y: (i) => 8 + Math.random() * 30,
+                                backgroundColor: '#93c5fd',
+                                duration: 1
+                            });
+                        }
+                    },
+                    {
+                        text: 'Step 2: Apply normalizing flow transformations',
+                        action: () => {
+                            // Organize particles into a pattern
+                            gsap.to('.particle', { 
+                                x: (i) => 50 + (i % 4) * 30,
+                                y: (i) => i < 4 ? 10 : 35,
+                                backgroundColor: '#3b82f6',
+                                duration: 1.5,
+                                ease: "power1.inOut",
+                                stagger: 0.1
+                            });
+                        }
+                    },
+                    {
+                        text: 'Step 3: Generate valid molecular structure',
+                        action: () => {
+                            // Hide particles and show molecule
+                            gsap.to('.particle', { opacity: 0, duration: 0.5 });
+                            gsap.to(moleculeIcon, { opacity: 1, duration: 0.5, delay: 0.3 });
+                        }
+                    }
+                ];
+                
+                // Initialize step counter
+                let currentStep = 0;
+                const prevBtn = document.getElementById('moflow-prev');
+                const nextBtn = document.getElementById('moflow-next');
+                
+                // Update buttons state
+                function updateButtons() {
+                    prevBtn.disabled = currentStep === 0;
+                    nextBtn.disabled = currentStep === steps.length - 1;
+                }
+                
+                // Update step display
+                function showStep(stepIndex) {
+                    explanationText.textContent = steps[stepIndex].text;
+                    steps[stepIndex].action();
+                    currentStep = stepIndex;
+                    updateButtons();
+                }
+                
+                // Button event listeners
+                prevBtn.addEventListener('click', () => {
+                    if (currentStep > 0) {
+                        showStep(currentStep - 1);
+                    }
+                });
+                
+                nextBtn.addEventListener('click', () => {
+                    if (currentStep < steps.length - 1) {
+                        showStep(currentStep + 1);
+                    }
+                });
+                
+                // Initialize first step
+                showStep(0);
+                updateButtons();
+            }
+
+            // Updated VAE Animation - Sequential demonstration
+            const vaeAnimation = document.getElementById('vae-animation');
+            if (vaeAnimation) {
+                // Clear existing content
+                vaeAnimation.innerHTML = '';
+                
+                // Add explanation text element
+                const explanationText = document.createElement('div');
+                explanationText.className = 'text-center font-medium text-purple-700 mb-2';
+                explanationText.textContent = 'Step 1: Start with molecular structure';
+                vaeAnimation.appendChild(explanationText);
+                
+                // Add container for visual elements
+                const animContainer = document.createElement('div');
+                animContainer.className = 'relative h-16 bg-purple-50 rounded-lg';
+                vaeAnimation.appendChild(animContainer);
+                
+                // Create starting molecule
+                const startMolecule = document.createElement('div');
+                startMolecule.className = 'absolute left-8 top-3';
+                startMolecule.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" viewBox="0 0 24 24" fill="none" stroke="#7e22ce" stroke-width="2">
+                        <circle cx="12" cy="8" r="3"></circle>
+                        <circle cx="6" cy="16" r="3"></circle>
+                        <circle cx="18" cy="16" r="3"></circle>
+                        <line x1="12" y1="11" x2="12" y2="13"></line>
+                        <line x1="6" y1="13" x2="6" y2="15"></line>
+                        <line x1="18" y1="13" x2="18" y2="15"></line>
+                        <line x1="12" y1="13" x2="6" y2="13"></line>
+                        <line x1="12" y1="13" x2="18" y2="13"></line>
+                    </svg>
+                `;
+                animContainer.appendChild(startMolecule);
+                
+                // Create encoder
+                const encoder = document.createElement('div');
+                encoder.className = 'vae-shape absolute left-24 top-5 bg-purple-300 opacity-0';
+                encoder.style.width = '60px';
+                encoder.style.height = '30px';
+                encoder.style.display = 'flex';
+                encoder.style.justifyContent = 'center';
+                encoder.style.alignItems = 'center';
+                encoder.innerHTML = '<span class="text-xs font-medium">Encoder</span>';
+                animContainer.appendChild(encoder);
+                
+                // Create latent space (circle)
+                const latent = document.createElement('div');
+                latent.className = 'particle absolute left-1/2 top-8 bg-purple-600 opacity-0';
+                latent.style.width = '16px';
+                latent.style.height = '16px';
+                latent.style.transform = 'translateX(-50%)';
+                animContainer.appendChild(latent);
+                
+                // Create decoder
+                const decoder = document.createElement('div');
+                decoder.className = 'vae-shape absolute right-24 top-5 bg-purple-300 opacity-0';
+                decoder.style.width = '60px';
+                decoder.style.height = '30px';
+                decoder.style.display = 'flex';
+                decoder.style.justifyContent = 'center';
+                decoder.style.alignItems = 'center';
+                decoder.innerHTML = '<span class="text-xs font-medium">Decoder</span>';
+                animContainer.appendChild(decoder);
+                
+                // Create ending molecule
+                const endMolecule = document.createElement('div');
+                endMolecule.className = 'absolute right-8 top-3 opacity-0';
+                endMolecule.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" viewBox="0 0 24 24" fill="none" stroke="#7e22ce" stroke-width="2">
+                        <circle cx="12" cy="8" r="3"></circle>
+                        <circle cx="6" cy="16" r="3"></circle>
+                        <circle cx="18" cy="16" r="3"></circle>
+                        <line x1="12" y1="11" x2="12" y2="13"></line>
+                        <line x1="6" y1="13" x2="6" y2="15"></line>
+                        <line x1="18" y1="13" x2="18" y2="15"></line>
+                        <line x1="12" y1="13" x2="6" y2="13"></line>
+                        <line x1="12" y1="13" x2="18" y2="13"></line>
+                    </svg>
+                `;
+                animContainer.appendChild(endMolecule);
+                
+                // Navigation controls
+                const navControls = document.createElement('div');
+                navControls.className = 'flex justify-center mt-4 space-x-4';
+                navControls.innerHTML = `
+                    <button id="vae-prev" class="px-3 py-1 bg-purple-100 text-purple-700 rounded-md disabled:opacity-50">Previous</button>
+                    <button id="vae-next" class="px-3 py-1 bg-purple-600 text-white rounded-md">Next</button>
+                `;
+                vaeAnimation.appendChild(navControls);
+                
+                // Animation steps
+                const steps = [
+                    {
+                        text: 'Step 1: Start with molecular structure',
+                        action: () => {
+                            // Reset to initial state
+                            gsap.to([encoder, latent, decoder, endMolecule], { opacity: 0, duration: 0.5 });
+                            gsap.to(startMolecule, { opacity: 1, x: 0, duration: 0.5 });
+                        }
+                    },
+                    {
+                        text: 'Step 2: Encode molecule into latent space',
+                        action: () => {
+                            // Show encoder and animate molecule into it
+                            gsap.to(encoder, { opacity: 1, duration: 0.5 });
+                            gsap.to(startMolecule, { x: 50, opacity: 0.5, duration: 1, delay: 0.3 });
+                            gsap.to(latent, { opacity: 1, duration: 0.5, delay: 1.3 });
+                        }
+                    },
+                    {
+                        text: 'Step 3: Sample from latent representation',
+                        action: () => {
+                            // Pulse the latent representation
+                            gsap.to(latent, { 
+                                scale: 1.2, 
+                                duration: 0.5, 
+                                repeat: 1, 
+                                yoyo: true,
+                                ease: "power1.inOut"
+                            });
+                        }
+                    },
+                    {
+                        text: 'Step 4: Decode to generate new molecule',
+                        action: () => {
+                            // Show decoder and decode to new molecule
+                            gsap.to(decoder, { opacity: 1, duration: 0.5 });
+                            gsap.to(endMolecule, { opacity: 1, duration: 0.5, delay: 0.5 });
+                        }
+                    }
+                ];
+                
+                // Initialize step counter
+                let currentStep = 0;
+                const prevBtn = document.getElementById('vae-prev');
+                const nextBtn = document.getElementById('vae-next');
+                
+                // Update buttons state
+                function updateButtons() {
+                    prevBtn.disabled = currentStep === 0;
+                    nextBtn.disabled = currentStep === steps.length - 1;
+                }
+                
+                // Update step display
+                function showStep(stepIndex) {
+                    explanationText.textContent = steps[stepIndex].text;
+                    steps[stepIndex].action();
+                    currentStep = stepIndex;
+                    updateButtons();
+                }
+                
+                // Button event listeners
+                prevBtn.addEventListener('click', () => {
+                    if (currentStep > 0) {
+                        showStep(currentStep - 1);
+                    }
+                });
+                
+                nextBtn.addEventListener('click', () => {
+                    if (currentStep < steps.length - 1) {
+                        showStep(currentStep + 1);
+                    }
+                });
+                
+                // Initialize first step
+                showStep(0);
+                updateButtons();
+            }
+        });
+    </script>
+</body>
+</html>
